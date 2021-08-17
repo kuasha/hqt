@@ -1,0 +1,174 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Serverless Application/API powered by API Gateway and Lambda - Adapted from AWS example templates
+Parameters:
+  DomainName:
+    Type: String
+    Description: API Domain name
+    Default: ''
+
+  LocalDevEndpoint:
+    Type: String
+    Default: 'http://localhost:8088'
+    Description: Enter local dev endpoint.
+
+  CognitoUserPoolName:
+    Type: String
+    Default: 'HQTriviaUserPool'
+    Description: Enter Cognito User Pool Name.
+
+  CognitoUserPoolClientName:
+    Type: String
+    Default: 'HQTriviaApp'
+    Description: Enter Cognito User Pool Client Name.
+
+  HQTriviaCognitoUserPoolDomainName:
+    Type: String
+    Default: 'hqtriviagameserver'
+    Description: Enter Cognito User Pool Domain Name.
+
+Conditions:
+  UseDomainName:
+    !Not
+      - !Equals
+        - !Ref DomainName
+        - ''
+
+Resources:
+  HQTriviaApi:
+    Type: AWS::Serverless::HttpApi
+    Cors: "'*'"
+    Auth:
+      DefaultAuthorizer: HQTriviaCognitoAuthorizer
+      Authorizers:
+        HQTriviaCognitoAuthorizer:
+          UserPoolArn: !GetAtt HQTriviaCognitoUserPool.Arn
+
+  HQTriviaLambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./src
+      Handler: main.lambda_handler
+      MemorySize: 1024
+      Runtime: python3.8
+      Timeout: 30
+      Events:
+        ProxyApiRoot:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HQTriviaApi
+
+  HQTriviaApiCertificate:
+    Type: 'AWS::CertificateManager::Certificate'
+    Condition: UseDomainName
+    Properties:
+      DomainName: !Sub '*.${DomainName}'
+      DomainValidationOptions:
+        - DomainName: !Sub '*.${DomainName}'
+          ValidationDomain: !Ref DomainName
+      SubjectAlternativeNames:
+        - !Ref DomainName
+  
+  HQTriviaApiDomainName:
+    Type: 'AWS::ApiGateway::DomainName'
+    Condition: UseDomainName
+    Properties:
+      CertificateArn: !Ref HQTriviaApiCertificate
+      DomainName: !Ref DomainName
+  
+  HQTriviaApiBasePathMapping:
+    Type: 'AWS::ApiGateway::BasePathMapping'
+    Condition: UseDomainName
+    Properties:
+      RestApiId: !Ref HQTriviaApi
+      DomainName: !Ref HQTriviaApiDomainName
+      BasePath: '(none)'
+      Stage: prod
+  
+  Route53HostedZone:
+    Type: AWS::Route53::HostedZone
+    Condition: UseDomainName
+    Properties:
+      Name: !Ref DomainName
+  
+  HQTriviaApiRoute53RecordSetGroup:
+    Type: AWS::Route53::RecordSetGroup
+    Condition: UseDomainName
+    Properties:
+      HostedZoneId: !Ref Route53HostedZone
+      RecordSets:
+        - Name: !Sub ${DomainName}.
+          Type: A
+          AliasTarget:
+            EvaluateTargetHealth: false
+            HostedZoneId: !GetAtt HQTriviaApiDomainName.DistributionHostedZoneId
+            DNSName: !GetAtt HQTriviaApiDomainName.DistributionDomainName
+
+  HQTriviaCognitoUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Ref CognitoUserPoolName
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+      AutoVerifiedAttributes:
+        - email
+      UsernameAttributes:
+        - email
+      Schema:
+        - AttributeDataType: String
+          Name: email
+          Required: false
+  
+  HQTriviaCognitoUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref HQTriviaCognitoUserPool
+      ClientName: !Ref CognitoUserPoolClientName
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthFlows: 
+        - code
+        - implicit
+      AllowedOAuthScopes:
+        - email
+        - openid
+        - profile
+        - phone
+      GenerateSecret: false
+      CallbackURLs: 
+        - !Sub https://${HQTriviaApi}.execute-api.${AWS::Region}.amazonaws.com/login/
+        - !Sub ${LocalDevEndpoint}/login/
+      LogoutURLs: 
+        - !Sub https://${HQTriviaApi}.execute-api.${AWS::Region}.amazonaws.com/logout/
+        - !Sub ${LocalDevEndpoint}/logout/
+      SupportedIdentityProviders: 
+        - COGNITO
+
+  HQTriviaCognitoUserPoolDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties: 
+      Domain: !Ref HQTriviaCognitoUserPoolDomainName
+      UserPoolId: !Ref HQTriviaCognitoUserPool
+
+Outputs:
+  LambdaFunctionConsoleUrl:
+    Description: Console URL for the Lambda Function.
+    Value: !Sub https://${AWS::Region}.console.aws.amazon.com/lambda/home?region=${AWS::Region}#/functions/${HQTriviaLambdaFunction}
+
+  ApiGatewayApiConsoleUrl:
+    Description: Console URL for the API Gateway API's Stage.
+    Value: !Sub https://${AWS::Region}.console.aws.amazon.com/apigateway/home?region=${AWS::Region}#/apis/${HQTriviaApi}/stages/prod
+
+  ApiUrl:
+    Description: Invoke URL for your API. Clicking this link will perform a GET request
+      on the root resource of your API.
+    Value: !Sub https://${HQTriviaApi}.execute-api.${AWS::Region}.amazonaws.com/
+
+  LambdaFunctionName:
+    Description: Name of the Serverless Express Lambda Function
+    Value: !Ref HQTriviaLambdaFunction
+
+  LoginUrl:
+    Description: Login URL
+    Value: !Sub https://${HQTriviaCognitoUserPoolDomain}.auth.${AWS::Region}.amazoncognito.com/oauth2/authorize?response_type=token&&client_id=${HQTriviaCognitoUserPoolClient}&redirect_uri=https://${HQTriviaApi}.execute-api.${AWS::Region}.amazonaws.com/login/
