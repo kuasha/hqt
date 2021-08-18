@@ -8,6 +8,16 @@ Parameters:
     Description: API Domain name
     Default: ''
 
+  DDBReadCapacityUnits:
+    Type: Number
+    Description: Read capacity units for dynamo db tables
+    Default: 5
+
+  DDBWriteCapacityUnits:
+    Type: Number
+    Description: Write capacity units for dynamo db tables
+    Default: 5
+
   LocalDevEndpoint:
     Type: String
     Default: 'http://localhost:8088'
@@ -58,6 +68,16 @@ Resources:
           Type: HttpApi
           Properties:
             ApiId: !Ref HQTriviaApi
+      Environment:
+        Variables:
+          GameResourceS3BucketName: !Ref GameResourceS3Bucket
+          ResposeDBTableName: !Ref ResposeDBTable
+          ParticipantDBTableName: !Ref ParticipantDBTable
+          GameDBTableName: !Ref GameDBTable
+          QuestionDBTableName: !Ref QuestionDBTable
+      Policies:
+        # DynamoDB Full Access to start
+        - AmazonDynamoDBFullAccess
 
   HQTriviaApiCertificate:
     Type: 'AWS::CertificateManager::Certificate'
@@ -151,6 +171,73 @@ Resources:
       Domain: !Ref HQTriviaCognitoUserPoolDomainName
       UserPoolId: !Ref HQTriviaCognitoUserPool
 
+  GameDBTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions: 
+        - AttributeName: id
+          AttributeType: S
+      KeySchema: 
+        - AttributeName: id
+          KeyType: HASH
+      ProvisionedThroughput: 
+        ReadCapacityUnits: !Ref DDBReadCapacityUnits
+        WriteCapacityUnits: !Ref DDBWriteCapacityUnits
+
+  QuestionDBTable:
+    Type: AWS::DynamoDB::Table
+    Properties: 
+      AttributeDefinitions: 
+        - AttributeName: id
+          AttributeType: S
+        - AttributeName: game_id
+          AttributeType: S
+      KeySchema: 
+        - AttributeName: id
+          KeyType: HASH
+        - AttributeName: game_id
+          KeyType: RANGE   
+      ProvisionedThroughput: 
+        ReadCapacityUnits: !Ref DDBReadCapacityUnits
+        WriteCapacityUnits: !Ref DDBWriteCapacityUnits
+
+  ParticipantDBTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions: 
+        - AttributeName: game_id
+          AttributeType: S
+        - AttributeName: user_id
+          AttributeType: S
+      KeySchema: 
+        - AttributeName: game_id
+          KeyType: HASH
+        - AttributeName: user_id
+          KeyType: RANGE   
+      ProvisionedThroughput: 
+        ReadCapacityUnits: !Ref DDBReadCapacityUnits
+        WriteCapacityUnits: !Ref DDBWriteCapacityUnits
+
+  ResposeDBTable:
+    Type: AWS::DynamoDB::Table
+    Properties: 
+      AttributeDefinitions: 
+        - AttributeName: game_id
+          AttributeType: S
+        - AttributeName: user_id
+          AttributeType: S
+      KeySchema: 
+        - AttributeName: game_id
+          KeyType: HASH
+        - AttributeName: user_id
+          KeyType: RANGE   
+      ProvisionedThroughput: 
+        ReadCapacityUnits: !Ref DDBReadCapacityUnits
+        WriteCapacityUnits: !Ref DDBWriteCapacityUnits
+
+  GameResourceS3Bucket:
+    Type: "AWS::S3::Bucket"
+
 Outputs:
   LambdaFunctionConsoleUrl:
     Description: Console URL for the Lambda Function.
@@ -165,10 +252,12 @@ Outputs:
       on the root resource of your API.
     Value: !Sub https://${HQTriviaApi}.execute-api.${AWS::Region}.amazonaws.com/
 
-  LambdaFunctionName:
-    Description: Name of the Serverless Express Lambda Function
-    Value: !Ref HQTriviaLambdaFunction
-
   LoginUrl:
     Description: Login URL
     Value: !Sub https://${HQTriviaCognitoUserPoolDomain}.auth.${AWS::Region}.amazoncognito.com/oauth2/authorize?response_type=token&&client_id=${HQTriviaCognitoUserPoolClient}&redirect_uri=https://${HQTriviaApi}.execute-api.${AWS::Region}.amazonaws.com/login/
+
+  GameResourceS3BucketName:
+    Description: Game resource bucket
+    Value: !Ref GameResourceS3Bucket
+    Export: 
+      Name: !Sub "${AWS::StackName}-GameResourceS3BucketName"
