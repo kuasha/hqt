@@ -23,6 +23,16 @@ Parameters:
     Default: 'http://localhost:8088'
     Description: Enter local dev endpoint.
 
+  HQTriviaAPIStageName:
+    Type: String
+    Default: 'api'
+    Description: Enter HQTrivia API Stage Name.
+
+  HQTriviaAPIVersionPrefix:
+    Type: String
+    Default: 'v1'
+    Description: Enter HQTrivia API Version Prefix.
+
   CognitoUserPoolName:
     Type: String
     Default: 'HQTriviaUserPool'
@@ -47,13 +57,15 @@ Conditions:
 
 Resources:
   HQTriviaApi:
-    Type: AWS::Serverless::HttpApi
+    Type: AWS::Serverless::Api
     Cors: "'*'"
     Auth:
       DefaultAuthorizer: HQTriviaCognitoAuthorizer
       Authorizers:
         HQTriviaCognitoAuthorizer:
           UserPoolArn: !GetAtt HQTriviaCognitoUserPool.Arn
+    Properties:
+      StageName: !Ref HQTriviaAPIStageName
 
   HQTriviaLambdaFunction:
     Type: AWS::Serverless::Function
@@ -65,9 +77,11 @@ Resources:
       Timeout: 30
       Events:
         ProxyApiRoot:
-          Type: HttpApi
+          Type: Api
           Properties:
-            ApiId: !Ref HQTriviaApi
+            RestApiId: !Ref HQTriviaApi
+            Path: '/{version}/{resource+}'
+            Method: ANY
       Environment:
         Variables:
           GameResourceS3BucketName: !Ref GameResourceS3Bucket
@@ -104,7 +118,7 @@ Resources:
       RestApiId: !Ref HQTriviaApi
       DomainName: !Ref HQTriviaApiDomainName
       BasePath: '(none)'
-      Stage: prod
+      Stage: !Ref HQTriviaAPIStageName
   
   Route53HostedZone:
     Type: AWS::Route53::HostedZone
@@ -157,10 +171,10 @@ Resources:
         - phone
       GenerateSecret: false
       CallbackURLs: 
-        - !Sub https://${HQTriviaApi}.execute-api.${AWS::Region}.amazonaws.com/login/
+        - !Sub https://${HQTriviaApi}.execute-api.${AWS::Region}.amazonaws.com/${HQTriviaAPIStageName}/${HQTriviaAPIVersionPrefix}/login/
         - !Sub ${LocalDevEndpoint}/login/
       LogoutURLs: 
-        - !Sub https://${HQTriviaApi}.execute-api.${AWS::Region}.amazonaws.com/logout/
+        - !Sub https://${HQTriviaApi}.execute-api.${AWS::Region}.amazonaws.com/${HQTriviaAPIStageName}/${HQTriviaAPIVersionPrefix}/logout/
         - !Sub ${LocalDevEndpoint}/logout/
       SupportedIdentityProviders: 
         - COGNITO
@@ -235,8 +249,75 @@ Resources:
         ReadCapacityUnits: !Ref DDBReadCapacityUnits
         WriteCapacityUnits: !Ref DDBWriteCapacityUnits
 
+  CloudFrontOriginIdentity:
+    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: 'origin identity'
+  
+  GameResourceS3BucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref GameResourceS3Bucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:aws:iam::cloudfront:user/CloudFront Origin Access Identity ${CloudFrontOriginIdentity}'
+            Action: 's3:GetObject'
+            Resource: !Sub 'arn:aws:s3:::${GameResourceS3Bucket}/*'
+
   GameResourceS3Bucket:
     Type: "AWS::S3::Bucket"
+    Properties:
+      WebsiteConfiguration:
+        IndexDocument: index.html
+        ErrorDocument: error.html
+
+  GameResourceEntrypointDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Origins:
+          - DomainName: !Sub '${GameResourceS3Bucket}.s3.${AWS::Region}.amazonaws.com'
+            Id: S3-GameResourceS3Bucket
+            S3OriginConfig:
+              OriginAccessIdentity: !Sub 'origin-access-identity/cloudfront/${CloudFrontOriginIdentity}'
+          - DomainName: !Sub '${HQTriviaApi}.execute-api.${AWS::Region}.amazonaws.com'
+            Id: API-Gateway-Origin
+            CustomOriginConfig:
+              OriginProtocolPolicy: match-viewer
+
+        Enabled: 'true'
+        CacheBehaviors:
+        - AllowedMethods:
+          - DELETE
+          - GET
+          - HEAD
+          - OPTIONS
+          - PATCH
+          - POST
+          - PUT
+          PathPattern: !Sub '${HQTriviaAPIStageName}/${HQTriviaAPIVersionPrefix}/*'
+          TargetOriginId: API-Gateway-Origin
+          ForwardedValues:
+            QueryString: 'false'
+            Cookies:
+              Forward: none
+          ViewerProtocolPolicy: redirect-to-https
+        DefaultCacheBehavior:
+          AllowedMethods:
+            - GET
+            - HEAD
+          TargetOriginId: S3-GameResourceS3Bucket
+          ForwardedValues:
+            QueryString: 'false'
+            Cookies:
+              Forward: none
+          ViewerProtocolPolicy: redirect-to-https
+        ViewerCertificate:
+          CloudFrontDefaultCertificate: 'true'
 
 Outputs:
   LambdaFunctionConsoleUrl:
@@ -261,3 +342,7 @@ Outputs:
     Value: !Ref GameResourceS3Bucket
     Export: 
       Name: !Sub "${AWS::StackName}-GameResourceS3BucketName"
+
+  GameResourceEntrypointDistribution:
+    Description: Game main entrypoint
+    Value: !GetAtt GameResourceEntrypointDistribution.DomainName
