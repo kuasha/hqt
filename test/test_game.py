@@ -1,6 +1,5 @@
 import unittest
-from unittest.mock import patch, Mock
-import game
+
 
 class MainTest(unittest.TestCase):
     def test_register_user_to_episode(self):
@@ -71,6 +70,7 @@ class MainTest(unittest.TestCase):
 
     def test_get_episode_statistics(self):
         pass
+
 
 if __name__ == '__main__':
     unittest.main()

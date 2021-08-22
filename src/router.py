@@ -1,5 +1,6 @@
 import json
 
+
 def route(event, context):
     msg = {
         "isBase64Encoded": False,

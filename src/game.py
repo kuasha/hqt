@@ -3,13 +3,16 @@ class User:
     def __init__(self):
         pass
 
+
 class EpisodeUser(User):
     def __init__(self):
         pass
 
+
 class Question:
     def __init__(self):
         pass
+
 
 class Episode:
     def __init__(self):
@@ -26,6 +29,7 @@ class Episode:
 
     def _eliminate_user(self, user):
         pass
+
 
 class Game:
     def __init__(self):

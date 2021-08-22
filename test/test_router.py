@@ -1,5 +1,5 @@
 import unittest
-import  router
+import router
 import json
 
 
@@ -26,6 +26,6 @@ class RouterTest(unittest.TestCase):
         result = router.route(event, None)
         self.assertEqual(result, expected_output)
 
+
 if __name__ == '__main__':
     unittest.main()
-
