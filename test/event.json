@@ -1,0 +1,42 @@
+{
+    "resource": "/{version}/{resource+}",
+    "path": "/v1/test/test/test",
+    "httpMethod": "POST",
+    "headers": {
+        "Accept-Encoding": "gzip, deflate, br",
+        "Authorization": "Qwerty",
+        "Cache-Control": "no-cache"
+    },
+    "multiValueHeaders": {
+    },
+    "queryStringParameters": null,
+    "multiValueQueryStringParameters": null,
+    "pathParameters": {
+        "resource": "test/test/test",
+        "version": "v1"
+    },
+    "stageVariables": null,
+    "requestContext": {
+        "resourceId": "14bw7d",
+        "resourcePath": "/{version}/{resource+}",
+        "httpMethod": "POST",
+        "extendedRequestId": "EcfygGJfoAMFTBA=",
+        "requestTime": "22/Aug/2021:01:48:12 +0000",
+        "path": "/api/v1/test/test/test",
+        "accountId": "305204908253",
+        "protocol": "HTTP/1.1",
+        "stage": "api",
+        "domainPrefix": "ovsel7v009",
+        "requestTimeEpoch": 1629596892653,
+        "requestId": "69b6fe25-29c5-4c45-8f13-fac2db8fc0ae",
+        "identity": {
+            "cognitoIdentityPoolId": null,
+            "accountId": null,
+            "cognitoIdentityId": null
+        },
+        "domainName": "ovsel7v009.execute-api.us-east-1.amazonaws.com",
+        "apiId": "ovsel7v009"
+    },
+    "body": "{\n\"data\": \"hello\"\n}",
+    "isBase64Encoded": false
+}
