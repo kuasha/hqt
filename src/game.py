@@ -1,39 +1,12 @@
-
-class User:
-    def __init__(self):
-        pass
-
-
-class EpisodeUser(User):
-    def __init__(self):
-        pass
-
-
-class Question:
-    def __init__(self):
-        pass
-
-
-class Episode:
-    def __init__(self):
-        pass
-
-    def submit_answer(self, user, question, answer):
-        pass
-
-    def select_next_question(self):
-        pass
-
-    def add_user(self, user):
-        pass
-
-    def _eliminate_user(self, user):
-        pass
+from episode import Episode
+import config
 
 
 class Game:
-    def __init__(self):
-        pass
+    def __init__(self, game_id, qset):
+        self.game_id = game_id
+        assert(len(qset) <= config.MAX_QUESTIONS_PER_EPISODE)
+        self.qset = qset
 
     def create_new_episode(self):
-        return Episode()
+        return Episode(self.game_id, self.qset)

@@ -1,6 +1,6 @@
 import unittest
 import store
-from game import User
+from user import User
 
 
 class StoreTest(unittest.TestCase):

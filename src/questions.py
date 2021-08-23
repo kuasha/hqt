@@ -1,3 +1,49 @@
+from exceptions import InvalidStateException, ResponseTimeoutException
+import utils
+import config
+
+
+class Question:
+    def __init__(self, qdef):
+        self.qdef = qdef
+        self.start_time = 0
+        self.answer_timeout = config.ANSWER_TIMEOUT
+
+    def get_id(self):
+        return self.qdef["id"]
+
+    def get_defn(self):
+        return self.qdef["question"]
+
+    def get_options(self):
+        return self.qdef["options"]
+
+    def get_answer(self):
+        return self.qdef["answer"]
+
+    def set_start_time(self):
+        self.start_time = utils.get_timestamp_utc()
+
+    def has_started(self):
+        return self.start_time is not None
+
+    def time_since_started(self):
+        if self.start_time < 1:
+            return 0
+
+        return utils.get_time_delta_utc(self.start_time)
+
+    def validate_can_accpet_answer(self):
+        if not self.has_started():
+            raise InvalidStateException()
+
+        if self.time_since_started() > self.answer_timeout:
+            raise ResponseTimeoutException()
+
+    def is_correct_answer(self, answer):
+        return self.get_answer() == answer
+
+
 set1 = [
     {
         "id": "aab6384d-e392-4508-8a2f-21b1bdd5b551",
@@ -77,4 +123,8 @@ set1 = [
 
 
 def get_next_question_set():
-    return set1
+    qs = []
+    for raw_q in set1:
+        q = Question(raw_q)
+        qs.append(q)
+    return qs

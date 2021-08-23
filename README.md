@@ -28,6 +28,7 @@ TODO: Degin high level diagram and detailed design link
 * Code linting
 * Code performance measurement 
 * Logging
+* Internationalization (languages, currencies, timezones etc.)
 * Metrics collection - for system and user actions
 * Alpha Beta Configuration
 * API Version management

@@ -8,12 +8,13 @@ class QuestionsTest(unittest.TestCase):
         qset = questions.get_next_question_set()
         self.assertEqual(len(qset), 12)
         for q in qset:
-            self.assertIsNotNone(q["id"])
-            self.assertIsNotNone(q["question"])
-            self.assertTrue(len(q["options"]) == 3)
-            for o in q["options"]:
+            self.assertIsNotNone(q.get_id())
+            self.assertIsNotNone(q.get_defn())
+            self.assertTrue(len(q.get_options()) == 3)
+            options = q.get_options()
+            for o in options:
                 self.assertIsNotNone(o)
-            self.assertTrue(q["answer"] >= 0 and q["answer"] <= 2)
+            self.assertTrue(q.get_answer() >= 0 and q.get_answer() <= 2)
 
 
 if __name__ == '__main__':
