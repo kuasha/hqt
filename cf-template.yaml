@@ -89,9 +89,13 @@ Resources:
           ParticipantDBTableName: !Ref ParticipantDBTable
           GameDBTableName: !Ref GameDBTable
           QuestionDBTableName: !Ref QuestionDBTable
+          EpisodeDBTableName: !Ref EpisodeDBTable
+          ResposeStatisticsDBTableName: !Ref ResposeStatisticsDBTable
+          EpisodeWorkerSQSURL: !Ref EpisodeWorkQueue
       Policies:
         # DynamoDB Full Access to start
         - AmazonDynamoDBFullAccess
+        - AmazonSQSFullAccess
 
   HQTriviaApiCertificate:
     Type: 'AWS::CertificateManager::Certificate'
@@ -204,13 +208,9 @@ Resources:
       AttributeDefinitions: 
         - AttributeName: id
           AttributeType: S
-        - AttributeName: game_id
-          AttributeType: S
       KeySchema: 
         - AttributeName: id
           KeyType: HASH
-        - AttributeName: game_id
-          KeyType: RANGE   
       ProvisionedThroughput: 
         ReadCapacityUnits: !Ref DDBReadCapacityUnits
         WriteCapacityUnits: !Ref DDBWriteCapacityUnits
@@ -219,15 +219,58 @@ Resources:
     Type: AWS::DynamoDB::Table
     Properties:
       AttributeDefinitions: 
-        - AttributeName: game_id
+        - AttributeName: episode_id
           AttributeType: S
         - AttributeName: user_id
           AttributeType: S
       KeySchema: 
-        - AttributeName: game_id
+        - AttributeName: episode_id
           KeyType: HASH
         - AttributeName: user_id
-          KeyType: RANGE   
+          KeyType: RANGE
+      StreamSpecification:
+        StreamViewType: NEW_IMAGE
+      ProvisionedThroughput: 
+        ReadCapacityUnits: !Ref DDBReadCapacityUnits
+        WriteCapacityUnits: !Ref DDBWriteCapacityUnits
+
+  ParticipantHandlerLambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./src
+      Handler: main.participant_handler
+      MemorySize: 1024
+      Runtime: python3.8
+      Timeout: 30
+      Environment:
+        Variables:
+          GameResourceS3BucketName: !Ref GameResourceS3Bucket
+          ResposeDBTableName: !Ref ResposeDBTable
+          ParticipantDBTableName: !Ref ParticipantDBTable
+          GameDBTableName: !Ref GameDBTable
+          QuestionDBTableName: !Ref QuestionDBTable
+          EpisodeDBTableName: !Ref EpisodeDBTable
+          ResposeStatisticsDBTableName: !Ref ResposeStatisticsDBTable
+          EpisodeWorkerSQSURL: !Ref EpisodeWorkQueue
+      Policies:
+        - AmazonDynamoDBFullAccess
+
+  ParticipantHandlerEventSourceMapping:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      EventSourceArn: !GetAtt ParticipantDBTable.StreamArn
+      FunctionName: !GetAtt ParticipantHandlerLambdaFunction.Arn
+      StartingPosition: "TRIM_HORIZON"
+      
+  EpisodeDBTable:
+    Type: AWS::DynamoDB::Table
+    Properties: 
+      AttributeDefinitions: 
+        - AttributeName: id
+          AttributeType: S
+      KeySchema: 
+        - AttributeName: id
+          KeyType: HASH
       ProvisionedThroughput: 
         ReadCapacityUnits: !Ref DDBReadCapacityUnits
         WriteCapacityUnits: !Ref DDBWriteCapacityUnits
@@ -236,18 +279,65 @@ Resources:
     Type: AWS::DynamoDB::Table
     Properties: 
       AttributeDefinitions: 
-        - AttributeName: game_id
+        - AttributeName: episode_id
           AttributeType: S
         - AttributeName: user_id
           AttributeType: S
       KeySchema: 
-        - AttributeName: game_id
+        - AttributeName: episode_id
           KeyType: HASH
         - AttributeName: user_id
+          KeyType: RANGE
+      StreamSpecification:
+        StreamViewType: NEW_IMAGE
+      ProvisionedThroughput: 
+        ReadCapacityUnits: !Ref DDBReadCapacityUnits
+        WriteCapacityUnits: !Ref DDBWriteCapacityUnits
+
+  ResposeStatisticsDBTable:
+    Type: AWS::DynamoDB::Table
+    Properties: 
+      AttributeDefinitions: 
+        - AttributeName: episode_id
+          AttributeType: S
+        - AttributeName: question_id
+          AttributeType: S
+      KeySchema: 
+        - AttributeName: episode_id
+          KeyType: HASH
+        - AttributeName: question_id
           KeyType: RANGE   
       ProvisionedThroughput: 
         ReadCapacityUnits: !Ref DDBReadCapacityUnits
         WriteCapacityUnits: !Ref DDBWriteCapacityUnits
+
+  ResponseHandlerLambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./src
+      Handler: main.response_handler
+      MemorySize: 1024
+      Runtime: python3.8
+      Timeout: 30
+      Environment:
+        Variables:
+          GameResourceS3BucketName: !Ref GameResourceS3Bucket
+          ResposeDBTableName: !Ref ResposeDBTable
+          ParticipantDBTableName: !Ref ParticipantDBTable
+          GameDBTableName: !Ref GameDBTable
+          QuestionDBTableName: !Ref QuestionDBTable
+          EpisodeDBTableName: !Ref EpisodeDBTable
+          ResposeStatisticsDBTableName: !Ref ResposeStatisticsDBTable
+          EpisodeWorkerSQSURL: !Ref EpisodeWorkQueue
+      Policies:
+        - AmazonDynamoDBFullAccess
+
+  ResponseHandlerEventSourceMapping:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      EventSourceArn: !GetAtt ResposeDBTable.StreamArn
+      FunctionName: !GetAtt ResponseHandlerLambdaFunction.Arn
+      StartingPosition: "TRIM_HORIZON"
 
   CloudFrontOriginIdentity:
     Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
@@ -319,15 +409,90 @@ Resources:
         ViewerCertificate:
           CloudFrontDefaultCertificate: 'true'
 
+  WorkerLambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./src
+      Handler: main.worker_handler
+      MemorySize: 1024
+      Runtime: python3.8
+      Timeout: 30
+      Environment:
+        Variables:
+          GameResourceS3BucketName: !Ref GameResourceS3Bucket
+          ResposeDBTableName: !Ref ResposeDBTable
+          ParticipantDBTableName: !Ref ParticipantDBTable
+          GameDBTableName: !Ref GameDBTable
+          QuestionDBTableName: !Ref QuestionDBTable
+          EpisodeDBTableName: !Ref EpisodeDBTable
+          ResposeStatisticsDBTableName: !Ref ResposeStatisticsDBTable
+          EpisodeWorkerSQSURL: !Ref EpisodeWorkQueue
+      Policies:
+        - AmazonDynamoDBFullAccess
+
+  WorkerLambdaScheduledRule: 
+    Type: AWS::Events::Rule
+    Properties: 
+      Description: "Worker Lambda Scheduled Rule"
+      ScheduleExpression: "rate(1 minute)"
+      State: "ENABLED"
+      Targets: 
+        - Id: "WorkerLambdaFunctionTarget"
+          Arn: !GetAtt WorkerLambdaFunction.Arn
+
+  PermissionForEventsToInvokeLambda: 
+    Type: AWS::Lambda::Permission
+    Properties: 
+      FunctionName: !Ref WorkerLambdaFunction
+      Action: "lambda:InvokeFunction"
+      Principal: "events.amazonaws.com"
+      SourceArn: !GetAtt WorkerLambdaScheduledRule.Arn
+
+  EpisodeWorkQueue: 
+    Type: AWS::SQS::Queue
+    Properties:
+      VisibilityTimeout: 20
+
+  EpisodeManagerLambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./src
+      Handler: main.episode_handler
+      MemorySize: 1024
+      Runtime: python3.8
+      Timeout: 15
+      Environment:
+        Variables:
+          GameResourceS3BucketName: !Ref GameResourceS3Bucket
+          ResposeDBTableName: !Ref ResposeDBTable
+          ParticipantDBTableName: !Ref ParticipantDBTable
+          GameDBTableName: !Ref GameDBTable
+          QuestionDBTableName: !Ref QuestionDBTable
+          EpisodeDBTableName: !Ref EpisodeDBTable
+          ResposeStatisticsDBTableName: !Ref ResposeStatisticsDBTable
+          EpisodeWorkerSQSURL: !Ref EpisodeWorkQueue
+      Policies:
+        - AmazonDynamoDBFullAccess
+        - AmazonSQSFullAccess
+
+  LambdaFunctionSQSSourceMapping:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      BatchSize: 10
+      Enabled: true
+      EventSourceArn: !GetAtt EpisodeWorkQueue.Arn
+      FunctionName: !GetAtt EpisodeManagerLambdaFunction.Arn
+
+  PermissionForSQSToInvokeEpisodeManagerLambda: 
+    Type: AWS::Lambda::Permission
+    Properties: 
+      FunctionName: !Ref EpisodeManagerLambdaFunction
+      Action: "lambda:InvokeFunction"
+      Principal: "sqs.amazonaws.com"
+      SourceArn: !GetAtt EpisodeWorkQueue.Arn
+
+
 Outputs:
-  LambdaFunctionConsoleUrl:
-    Description: Console URL for the Lambda Function.
-    Value: !Sub https://${AWS::Region}.console.aws.amazon.com/lambda/home?region=${AWS::Region}#/functions/${HQTriviaLambdaFunction}
-
-  ApiGatewayApiConsoleUrl:
-    Description: Console URL for the API Gateway API's Stage.
-    Value: !Sub https://${AWS::Region}.console.aws.amazon.com/apigateway/home?region=${AWS::Region}#/apis/${HQTriviaApi}/stages/prod
-
   ApiUrl:
     Description: Invoke URL for your API. Clicking this link will perform a GET request
       on the root resource of your API.
@@ -336,12 +501,6 @@ Outputs:
   LoginUrl:
     Description: Login URL
     Value: !Sub https://${HQTriviaCognitoUserPoolDomain}.auth.${AWS::Region}.amazoncognito.com/oauth2/authorize?response_type=token&&client_id=${HQTriviaCognitoUserPoolClient}&redirect_uri=https://${HQTriviaApi}.execute-api.${AWS::Region}.amazonaws.com/login/
-
-  GameResourceS3BucketName:
-    Description: Game resource bucket
-    Value: !Ref GameResourceS3Bucket
-    Export: 
-      Name: !Sub "${AWS::StackName}-GameResourceS3BucketName"
 
   GameResourceEntrypointDistribution:
     Description: Game main entrypoint

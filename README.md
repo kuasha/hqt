@@ -17,7 +17,27 @@ The goal of this project is to develop a production grade system to develop a si
 
 ## Design
 
-TODO: Degin high level diagram and detailed design link
+We have a few object types:
+* User
+* Question
+* Game (holds a set of questions)
+* Episode (an instance of a game)
+* Participant (user registration record of a specific episode)
+* Response (to a question)
+* Statistics (counts the submission for each question)
+
+Objects are submitted to the API Gateway. API Gateway invokes a single 
+lambda function that routes the call to specific handler for each resource/calls.
+
+Resource are saved in their corrosponding dynamodb table. Some tables have streams associates with them. 
+
+When a participant object is created (episode_id, user_id) the stream invokes a lambda 
+function that updates the participant_count in the Episode object.
+
+When a Response is posted to the API, the handler checks if the answer can be accepted 
+at this time. After recording the response the stream invokes a lambda handler that 
+checks if the answe is correct or not. For wrong answer it updates the participant 
+object and mark it as eliminated.
 
 ## Topics Covered
 

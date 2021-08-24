@@ -1,5 +1,20 @@
 from episode import Episode
 import config
+import logging
+
+
+def handle_get(id):
+    pass
+
+
+def handle_post(data):
+    keys = data.keys()
+    assert("id" in keys)
+    assert("qset" in keys)
+
+    data["state"] = ""
+
+    logging.ingo("Handler finished processing.")
 
 
 class Game:
