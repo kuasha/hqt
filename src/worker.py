@@ -27,9 +27,11 @@ def episode_handler(event, context):
                 "Could not load episode with id: {}".format(episode_id))
             continue
         cur_state = episode["state"]
-        min_participant = episode["min_participant"]
-        participant_count = episode["participant_count"]
+        min_participant = int(episode["min_participant"])
+        participant_count = int(episode["participant_count"])
         can_start = participant_count >= min_participant
+        eliminated_count = int(episode["eliminated_count"])
+        
         if not cur_state:
             ddbstore.update_episode_state(episode_id, ACCPETING_REGISTRATION)
         elif cur_state == ACCPETING_REGISTRATION and can_start:
@@ -38,6 +40,7 @@ def episode_handler(event, context):
             question_start_timestamp = int(episode["question_start_timestamp"])
             time_since_last_question = int(
                 utils.get_time_delta_utc(question_start_timestamp))
+                
             if time_since_last_question >= config.MIN_TIME_BETWEEN_QUESTIONS:
                 new_state = cur_state
                 current_question_index = int(episode["current_question_index"])
@@ -47,6 +50,10 @@ def episode_handler(event, context):
                     new_state = ENDED
                 ddbstore.update_episode_state_qindex(
                     episode_id, new_state, next_qindex)
+
+            if  participant_count - eliminated_count < 2:
+                logging.info("All but one participant has been eliminated. Ending episode.") 
+                ddbstore.update_episode_state(episode_id, ENDED)                
 
         if cur_state == ENDED:
             logging.info("Episode has ended. Ending thde worker loop.")

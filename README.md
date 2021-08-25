@@ -17,6 +17,18 @@ The goal of this project is to develop a production grade system to develop a si
 
 ## Design
 
+System is designed using AWS services and checked into a github repository.
+
+Github workflow is used to run linting and unit testing after each checkin and result (pass/fail) is shown on the README.md page on the repository.
+
+The system is deployed using a single deploy.sh command to a AWS account (aws configure needs to be run first to configure credentials).
+
+Once deployed API endpoint and cognito user pool will be ready. Users can signup and signin but authentication information is not being validated in the API yer. The simple authorizer will just check if an "Authorization" header is present for each request. The authorization header should be the cognito access token and system should check that for authentication and authorization.
+
+API is designed to use http POST to create a new record and GET to read it.
+
+On each create API request system validates the data and submits to the database.
+
 We have a few object types:
 * User
 * Question
@@ -31,13 +43,27 @@ lambda function that routes the call to specific handler for each resource/calls
 
 Resource are saved in their corrosponding dynamodb table. Some tables have streams associates with them. 
 
-When a participant object is created (episode_id, user_id) the stream invokes a lambda 
-function that updates the participant_count in the Episode object.
+For example when a participant object is created (episode_id, user_id) the stream invokes a lambda function that updates the participant_count in the Episode object.
 
-When a Response is posted to the API, the handler checks if the answer can be accepted 
-at this time. After recording the response the stream invokes a lambda handler that 
-checks if the answe is correct or not. For wrong answer it updates the participant 
-object and mark it as eliminated.
+When a Response is posted to the API, the handler checks if the answer can be accepted at this time. After recording the response the stream invokes a lambda handler that checks if the answe is correct or not. For wrong answer it updates the participant object and mark it as eliminated. Eliminated count is updated on the episode object.
+
+We use atomic increament operation for increasing counts and those are done one at a time but in parallel by any  number of lambda function is requered. To scale beyond 1000 requests per second we need to increase the lambda function concurrent execution limit for the account.
+
+Statistics for each option selected for a question is updated after each answer submition.
+
+A worker function that handles episode is run every one minute and it checks if there are enough participant in the episode and move it to running state. 
+
+It will move from first question to last giestion with configurable time interval given to the participants. Answers (response) is accepted for 10 seconds (configurable) after the question is made available. 
+
+After all questions are made available the system ends the episode. The worker will end the episode is there is only one participant left (not eliminated).
+
+
+
+### Resource names
+
+We are not using hardcoded resource names to be able to deploy multiple instances of the system in same account. But it makes it harder in terms of operational experience. Since this is a small system small number of resources, it is OK. 
+
+Before going to production the data table names and other names should be fixed so it is easier to understand the system. At the moment names are being supplied to the code using environment variables.
 
 ## Topics Covered
 
