@@ -1,6 +1,3 @@
-import os
-
-
 MAX_QUESTIONS_PER_EPISODE = 12
 ANSWER_TIMEOUT = 10  # seconds
 MIN_TIME_BETWEEN_QUESTIONS = 60  # seconds
@@ -26,9 +23,4 @@ DDB_TABLE_ENV_MAP = {
     RESPONSE_STAT_RESOURCE_NAME: "ResposeStatisticsDBTableName"
 }
 
-env_keys = os.environ.keys()
-
-if "EpisodeWorkerSQSURL" in env_keys:
-    EPISODE_WORKER_SQS_QUEUE_URL = os.environ["EpisodeWorkerSQSURL"]
-else:
-    EPISODE_WORKER_SQS_QUEUE_URL = "https://localhost:8443/sqs/EPISODE_WORKER_SQS_QUEUE"
+EPISODE_WORKER_SQS_QUEUE_NAME = "EpisodeWorkerSQSURL"

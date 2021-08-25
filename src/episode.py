@@ -52,6 +52,6 @@ def handle_post(data):
     data["eliminated_count"] = int(0)
 
     msg = episode_id
-    messaging.send_message(config.EPISODE_WORKER_SQS_QUEUE_URL,
+    messaging.send_message(config.EPISODE_WORKER_SQS_QUEUE_NAME,
                            msg, config.EPISODE_WORKER_MSG_DELAY)
     logging.info("Handler finished processing.")

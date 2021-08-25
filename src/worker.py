@@ -58,4 +58,4 @@ def episode_handler(event, context):
         else:
             msg = episode_id
             messaging.send_message(
-                config.EPISODE_WORKER_SQS_QUEUE_URL, msg, config.EPISODE_WORKER_MSG_DELAY)
+                config.EPISODE_WORKER_SQS_QUEUE_NAME, msg, config.EPISODE_WORKER_MSG_DELAY)

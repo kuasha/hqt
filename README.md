@@ -13,7 +13,7 @@ The goal of this project is to develop a production grade system to develop a si
 * Authentication and authorization
 * Report API
 * Static object delivery
-* Notification susyem (eg. push notification to let user know game is starting)
+* Notification subsyem (eg. push notification to let user know game is starting)
 
 ## Design
 
@@ -66,6 +66,14 @@ At the moment it just works but reorganization of code is required.
 The field names of objects are coded as string all over the modules - needs to be in single object / module that exposes functions/classes to wrap the individual concepts.
 
 The unit tests are now completely removed, fixing unit tests will fix some of the code issues.
+
+### Tests and linting
+
+Unit test and linting are run by github action workflows. A canary function has been created to run canary test (canary.py) but has bot been implemented yet. The infrastructure to support it is in place. Linter can be run using ```lint.sh``` and unit tests can be run using ```test.sh``` command on developer box.
+
+### Production infrastructure
+
+Infrastructure is created using AWS CloudFormation and definitions can be found in cf-template.yaml. It can be deployed using ```deploy.sh``` command.
 
 ### Resource names
 
