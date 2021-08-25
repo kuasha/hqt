@@ -105,7 +105,7 @@ Body:
     
 ```
 
-#### Create a Question 
+#### Create Question objects 
 
 URL:
 
@@ -174,10 +174,13 @@ Body:
     {
         "id": "c62d941b-5de5-46b5-8d6c-3db7c679f96c",
         "game_id": "74cc6161-9380-4aef-9344-3b48ecc9a8d1",
-        "min_participant": 2
+        "min_participant": 2,
+        "qset": ["cd3049e4-1362-4340-b520-eab9a50ae003", "aab6384d-e392-4508-8a2f-21b1bdd5b551"]
     }
     
 ```
+
+Yes, the episode object requires qset whis should be copied from game object. [FIXME]
 
 #### Register a participant
 

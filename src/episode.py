@@ -31,6 +31,7 @@ def handle_post(data):
         raise DuplicateRecordException("Episodes can not be updated")
 
     qset = data["qset"]
+    assert(len(qset) <= config.MAX_QUESTIONS_PER_EPISODE)
     for qid in qset:
         item = {
             "episode_id": episode_id,

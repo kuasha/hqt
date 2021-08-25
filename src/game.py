@@ -14,4 +14,4 @@ def handle_post(data):
 
     data["state"] = ""
 
-    logging.ingo("Handler finished processing.")
+    logging.info("Handler finished processing.")
