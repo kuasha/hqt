@@ -409,11 +409,11 @@ Resources:
         ViewerCertificate:
           CloudFrontDefaultCertificate: 'true'
 
-  WorkerLambdaFunction:
+  CanaryWorkerLambdaFunction:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: ./src
-      Handler: main.worker_handler
+      Handler: canary.worker_handler
       MemorySize: 1024
       Runtime: python3.8
       Timeout: 30
@@ -434,16 +434,16 @@ Resources:
     Type: AWS::Events::Rule
     Properties: 
       Description: "Worker Lambda Scheduled Rule"
-      ScheduleExpression: "rate(1 minute)"
+      ScheduleExpression: "rate(10 minute)"
       State: "ENABLED"
       Targets: 
         - Id: "WorkerLambdaFunctionTarget"
-          Arn: !GetAtt WorkerLambdaFunction.Arn
+          Arn: !GetAtt CanaryWorkerLambdaFunction.Arn
 
   PermissionForEventsToInvokeLambda: 
     Type: AWS::Lambda::Permission
     Properties: 
-      FunctionName: !Ref WorkerLambdaFunction
+      FunctionName: !Ref CanaryWorkerLambdaFunction
       Action: "lambda:InvokeFunction"
       Principal: "events.amazonaws.com"
       SourceArn: !GetAtt WorkerLambdaScheduledRule.Arn

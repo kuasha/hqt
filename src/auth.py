@@ -3,7 +3,7 @@ from exceptions import UnauthorizedException
 
 
 def is_authorized(token):
-    logging.warn("TODO: Authorization is skipped.")
+    logging.warning("TODO: Authorization is skipped.")
     return True
 
 

@@ -57,7 +57,15 @@ It will move from first question to last giestion with configurable time interva
 
 After all questions are made available the system ends the episode. The worker will end the episode is there is only one participant left (not eliminated).
 
+### Code quality
 
+Code quality is non existant in the current implementation :D
+
+The single responsibility principle is severely broken (most of SOLID actually). 
+At the moment it just works but reorganization of code is required.
+The field names of objects are coded as string all over the modules - needs to be in single object / module that exposes functions/classes to wrap the individual concepts.
+
+The unit tests are now completely removed, fixing unit tests will fix some of the code issues.
 
 ### Resource names
 

@@ -1,12 +1,4 @@
-import uuid
 import unittest
-from unittest.mock import patch, Mock
-from game import Game
-from user import EpisodeUser
-from episode import Episode, ENDED
-import questions
-import config
-import exceptions
 
 
 class MainTest(unittest.TestCase):

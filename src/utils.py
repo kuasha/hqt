@@ -22,3 +22,7 @@ def get_time_delta_utc(from_timestamp_utc):
 
 def get_answer_fieldname(answer):
     return "answer-" + str(answer)
+
+
+def get_resource_table_name(resource_name):
+    pass

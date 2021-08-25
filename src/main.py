@@ -1,5 +1,4 @@
 import json
-import logging
 from exceptions import UnauthorizedException
 import router
 import response
@@ -37,10 +36,6 @@ def response_handler(event, context):
 
 def participant_handler(event, context):
     return participant.process(event, context)
-
-
-def worker_handler(event, context):
-    return worker.process(event, context)
 
 
 def episode_handler(event, context):

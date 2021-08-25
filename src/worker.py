@@ -1,13 +1,10 @@
-import os
 import json
 import logging
-import ddbstore
+import store
 from episode import ACCPETING_REGISTRATION, ENDED, STARTED
 import messaging
 import config
 import utils
-
-EPISODE_WORKER_SQS_QUEUE_URL = os.environ["EpisodeWorkerSQSURL"]
 
 
 def process(event, context):
@@ -20,7 +17,7 @@ def episode_handler(event, context):
     for r in event["Records"]:
         episode_id = r["body"]
         logging.info("Processing episode {}".format(episode_id))
-        episode = ddbstore.load_resource(
+        episode = store.load_resource(
             config.EPISODE_RESOURCE_NAME, episode_id)
         if not episode:
             logging.warn(
@@ -31,16 +28,16 @@ def episode_handler(event, context):
         participant_count = int(episode["participant_count"])
         can_start = participant_count >= min_participant
         eliminated_count = int(episode["eliminated_count"])
-        
+
         if not cur_state:
-            ddbstore.update_episode_state(episode_id, ACCPETING_REGISTRATION)
+            store.update_episode_state(episode_id, ACCPETING_REGISTRATION)
         elif cur_state == ACCPETING_REGISTRATION and can_start:
-            ddbstore.update_episode_state_qindex(episode_id, STARTED, 0)
+            store.update_episode_state_qindex(episode_id, STARTED, 0)
         elif cur_state == STARTED:
             question_start_timestamp = int(episode["question_start_timestamp"])
             time_since_last_question = int(
                 utils.get_time_delta_utc(question_start_timestamp))
-                
+
             if time_since_last_question >= config.MIN_TIME_BETWEEN_QUESTIONS:
                 new_state = cur_state
                 current_question_index = int(episode["current_question_index"])
@@ -48,16 +45,17 @@ def episode_handler(event, context):
                 next_qindex = current_question_index + 1
                 if next_qindex >= len(qset):
                     new_state = ENDED
-                ddbstore.update_episode_state_qindex(
+                store.update_episode_state_qindex(
                     episode_id, new_state, next_qindex)
 
-            if  participant_count - eliminated_count < 2:
-                logging.info("All but one participant has been eliminated. Ending episode.") 
-                ddbstore.update_episode_state(episode_id, ENDED)                
+            if participant_count - eliminated_count < 2:
+                logging.info(
+                    "All but one participant has been eliminated. Ending episode.")
+                store.update_episode_state(episode_id, ENDED)
 
         if cur_state == ENDED:
             logging.info("Episode has ended. Ending thde worker loop.")
         else:
             msg = episode_id
             messaging.send_message(
-                EPISODE_WORKER_SQS_QUEUE_URL, msg, config.EPISODE_WORKER_MSG_DELAY)
+                config.EPISODE_WORKER_SQS_QUEUE_URL, msg, config.EPISODE_WORKER_MSG_DELAY)

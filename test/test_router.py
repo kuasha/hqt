@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch, Mock
 import router
 import json
 
@@ -6,13 +7,14 @@ import json
 class RouterTest(unittest.TestCase):
     def test_router(self):
         event = {
-            "requestContext": {
-                "http": {
-                    "path": "/login",
-                    "method": "GET"
-                }
+            "httpMethod": "POST",
+            "pathParameters": {
+                "resource": "episode/123"
             },
-            "body": "test body"
+            "body": "{}",
+            "headers": {
+                "Authorization": "test"
+            }
         }
 
         expected_output = {
@@ -23,8 +25,12 @@ class RouterTest(unittest.TestCase):
                 "content-type": "application/json"
             }
         }
-        result = router.route(event, None)
-        self.assertEqual(result, expected_output)
+
+        mock = Mock()
+        mock.return_value = expected_output
+        with patch('store.create_resource', mock):
+            result = router.route(event, None)
+            self.assertEqual(result, expected_output)
 
 
 if __name__ == '__main__':

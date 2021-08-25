@@ -1,6 +1,6 @@
 import logging
 import json
-import ddbstore
+import store
 from exceptions import DuplicateRecordException, RecordNotFoundException
 import config
 
@@ -15,13 +15,13 @@ def handle_post(data):
     assert("user_id" in keys)
 
     episode_id = data["episode_id"]
-    episode = ddbstore.load_resource(config.EPISODE_RESOURCE_NAME, episode_id)
+    episode = store.load_resource(config.EPISODE_RESOURCE_NAME, episode_id)
 
     if episode is None:
         raise RecordNotFoundException("Episodes not found")
 
     user_id = data["user_id"]
-    participant = ddbstore.load_participant(episode_id, user_id)
+    participant = store.load_participant(episode_id, user_id)
     if participant is not None:
         raise DuplicateRecordException(
             "User has already registered to the episode.")
@@ -41,13 +41,13 @@ def process(event, context):
                     "episode_id": raw_participant["episode_id"]["S"],
                     "user_id": raw_participant["user_id"]["S"]
                 }
-                ddbstore.update_participant_statistics(participant)
+                store.update_participant_statistics(participant)
             elif r["eventName"] == "MODIFY":
                 raw_participant = r["dynamodb"]["NewImage"]
                 eliminated = raw_participant["eliminated"]["BOOL"]
                 if eliminated:  # TODO: make sure only one event comes
                     episode_id = raw_participant["episode_id"]["S"]
                     user_id = raw_participant["user_id"]["S"]
-                    ddbstore.update_eliminated_statistics(episode_id, user_id)
+                    store.update_eliminated_statistics(episode_id, user_id)
         except KeyError:
             pass  # ignore malformed record for now (TODO)
