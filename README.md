@@ -73,7 +73,207 @@ We are not using hardcoded resource names to be able to deploy multiple instance
 
 Before going to production the data table names and other names should be fixed so it is easier to understand the system. At the moment names are being supplied to the code using environment variables.
 
-## Topics Covered
+## API Examples
+
+### Base URL
+
+```
+https://ovsel7v009.execute-api.us-east-1.amazonaws.com
+```
+
+#### Create a Game 
+
+URL:
+
+```
+$BASE_URL/api/v1/game/
+```
+Method: ```POST```
+
+Header:
+```
+Authorization: dummy
+```
+
+Body:
+
+```
+    {
+        "qset": ["cd3049e4-1362-4340-b520-eab9a50ae003", "aab6384d-e392-4508-8a2f-21b1bdd5b551"],
+        "id": "74cc6161-9380-4aef-9344-3b48ecc9a8d1"
+    }
+    
+```
+
+#### Create a Question 
+
+URL:
+
+```
+$BASE_URL/api/v1/question/
+```
+Method: ```POST```
+
+Header:
+```
+Authorization: dummy
+```
+
+Body:
+
+```
+    {
+        "id": "aab6384d-e392-4508-8a2f-21b1bdd5b551",
+        "question": "The Blackstreet lyric “I like the way you work it” is from what iconic song?",
+        "options": [
+            "No Diggity", "Yes Diggity", "Maybe a Lil Diggity"
+        ],
+        "answer": "0"
+    }
+```
+
+We should create two more questions.
+
+Question 2 body
+```
+    {
+        "id": "8375a054-9817-4cac-9aa9-c09c0e78c202",
+        "question": "The American episodic TV show that’s produced the most episodes is in what genre?",
+        "options": ["Animated", "Game show", "Soap opera"],
+        "answer": "2"
+    }
+```
+Question 3 body
+```
+    {
+        "id": "cd3049e4-1362-4340-b520-eab9a50ae003",
+        "question": "What does Edward prepare for the Christmas party in “Edward Scissorhands”?",
+        "options": ["Cronuts", "Ice sculpture", "Santa costume"],
+        "answer": "1"
+    },
+    
+```
+
+#### Create an Episode 
+
+URL:
+
+```
+$BASE_URL/api/v1/episode/
+```
+Method: ```POST```
+
+Header:
+```
+Authorization: dummy
+```
+
+Body:
+
+```
+    {
+        "id": "c62d941b-5de5-46b5-8d6c-3db7c679f96c",
+        "game_id": "74cc6161-9380-4aef-9344-3b48ecc9a8d1",
+        "min_participant": 2
+    }
+    
+```
+
+#### Register a participant
+
+URL:
+
+```
+$BASE_URL/api/v1/participant/
+```
+Method: ```POST```
+
+Header:
+```
+Authorization: dummy
+```
+
+Body:
+```
+    {
+        "episode_id": "c62d941b-5de5-46b5-8d6c-3db7c679f96c",
+        "user_id": "4e1f7af7-2ac6-45bb-834c-a4269fe6d4fd"
+    }
+```
+The user_id will be validated against authorization token - which has not been implemented yet. And since we need at least two users (see the body of episode above) we create another registration with following body:
+
+```
+    {
+        "episode_id": "c62d941b-5de5-46b5-8d6c-3db7c679f96c",
+        "user_id": "7714a925-40f2-4125-8670-d40391ceb501"
+    }
+```
+
+After two participants are registered the episode will move to ```STARTED``` state and submission of the answer to first question can be submitted in about a minute. The start time is set to about a minute in future so we can send notification to all users within that time.
+
+#### Response to a question
+
+
+URL:
+
+```
+$BASE_URL/api/v1/response/
+```
+Method: ```POST```
+
+Header:
+```
+Authorization: dummy
+```
+
+Body:
+```
+  {
+        "episode_id": "c62d941b-5de5-46b5-8d6c-3db7c679f96c",
+        "question_id":  "cd3049e4-1362-4340-b520-eab9a50ae003",
+        "user_id": "4e1f7af7-2ac6-45bb-834c-a4269fe6d4fd",
+        "answer":"1"
+  }
+```
+
+We can sumbit a wrong answer here and the workflow will eliminate the user and then END the episode as there will be only one user left.
+
+The worker will continue to watch the episode, move to next question and ultimately end the episode. 
+
+#### Get episode data
+
+
+URL:
+
+```
+$BASE_URL/api/v1/episode/
+```
+Method: ```GET```
+
+Header:
+```
+Authorization: dummy
+```
+
+Response:
+```
+{
+    "participant_count": 0,
+    "qset": [
+        "cd3049e4-1362-4340-b520-eab9a50ae003",
+        "aab6384d-e392-4508-8a2f-21b1bdd5b551"
+    ],
+    "question_start_timestamp": 0,
+    "eliminated_count": 0,
+    "min_participant": 2,
+    "id": "c62d941b-5de5-46b5-8d6c-3db7c679f96c",
+    "current_question_index": -1,
+    "state": "",
+    "game_id": "74cc6161-9380-4aef-9344-3b48ecc9a8d1"
+}
+```
+
+## Production Readiness Considerations
 
 * Unit tests
 * Integration tests
